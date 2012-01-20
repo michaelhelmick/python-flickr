@@ -2,11 +2,10 @@
 
 import sys, os
 from setuptools import setup
-import flickr
 
 setup(
     name='python-flickr',
-    version=flickr.__version__,
+    version='0.1.0',
     install_requires=['httplib2', 'oauth2', 'simplejson'],
     author='Mike Helmick',
     author_email='mikehelmick@me.com',

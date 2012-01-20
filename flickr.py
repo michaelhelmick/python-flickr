@@ -55,7 +55,7 @@ class FlickrAPI(object):
 
         self.headers = headers
         if self.headers is None:
-            self.headers = {'User-agent': 'Python-Flickr v1.0'}
+            self.headers = {'User-agent': 'Python-Flickr v%s' % __version__}
 
         self.consumer = None
         self.token = None
