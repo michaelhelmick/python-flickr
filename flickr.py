@@ -6,7 +6,7 @@ For Flickr API documentation, visit: http://www.flickr.com/services/api/
 '''
 
 __author__ = 'Mike Helmick <mikehelmick@me.com>'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 import time
 import urllib
@@ -30,14 +30,16 @@ except ImportError:
         except ImportError:
             raise ImportError('A json library is required to use this python library. Lol, yay for being verbose. ;)')
 
+
 class FlickrAPIError(Exception): pass
 class FlickrAuthError(FlickrAPIError): pass
 
+
 class FlickrAPI(object):
-    def __init__(self, api_key=None, api_secret=None, oauth_token=None, oauth_token_secret=None, callback_url=None, headers=None, client_args={}):
+    def __init__(self, api_key=None, api_secret=None, oauth_token=None, oauth_token_secret=None, callback_url=None, headers=None, client_args=None):
         if not api_key or not api_secret:
             raise FlickrAPIError('Please supply an api_key and api_secret.')
-        
+
         self.api_key = api_key
         self.api_secret = api_secret
         self.oauth_token = oauth_token
@@ -51,7 +53,7 @@ class FlickrAPI(object):
         self.access_token_url = 'http://www.flickr.com/services/oauth/access_token'
         self.authorize_url = 'http://www.flickr.com/services/oauth/authorize'
 
-        self.default_params = {'api_key':self.api_key}
+        self.default_params = {'api_key': self.api_key}
 
         self.headers = headers
         if self.headers is None:
@@ -59,6 +61,8 @@ class FlickrAPI(object):
 
         self.consumer = None
         self.token = None
+
+        client_args = client_args or {}
 
         if self.api_key is not None and self.api_secret is not None:
             self.consumer = oauth.Consumer(self.api_key, self.api_secret)
@@ -87,7 +91,7 @@ class FlickrAPI(object):
 
         request_args = {}
         resp, content = self.client.request('%s?oauth_callback=%s' % (self.request_token_url, self.callback_url), 'GET', **request_args)
-        
+
         if resp['status'] != '200':
             raise FlickrAuthError('There was a problem retrieving an authentication url.')
 
@@ -131,9 +135,8 @@ class FlickrAPI(object):
         if endpoint is None and files is None:
             raise FlickrAPIError('Please supply an API endpoint to hit.')
 
-        
         params.update(self.default_params)
-        params.update({'method': endpoint, 'format':format})
+        params.update({'method': endpoint, 'format': format})
 
         if format == 'json':
             params['nojsoncallback'] = 1
@@ -148,22 +151,21 @@ class FlickrAPI(object):
 
             if files is not None:
                 files = [('photo', files, open(files, 'rb').read())]
-                
+
                 #create a fake request with your upload url and parameters
                 faux_req = oauth.Request(method='POST', url=self.upload_api_url, parameters=params)
-        
+
                 #sign the fake request.
                 signature_method = oauth.SignatureMethod_HMAC_SHA1()
                 faux_req.sign_request(signature_method, self.consumer, self.token)
-        
+
                 #create a dict out of the fake request signed params
                 params = dict(parse_qsl(faux_req.to_postdata()))
-        
+
                 content_type, body = self.encode_multipart_formdata(params, files)
                 headers = {'Content-Type': content_type, 'Content-Length': str(len(body))}
                 r = urllib2.Request('%s' % self.upload_api_url, body, headers)
                 return urllib2.urlopen(r).read()
-
 
             req = oauth.Request(method='POST', url=self.rest_api_url, parameters=params)
 
@@ -174,7 +176,7 @@ class FlickrAPI(object):
             resp, content = self.client.request(req.to_url(), 'POST', body=req.to_postdata(), headers=self.headers)
         else:
             resp, content = self.client.request('%s?%s' % (self.rest_api_url, urllib.urlencode(params)), 'GET', headers=self.headers)
-        
+
         status = int(resp['status'])
         if status < 200 or status >= 300:
             raise FlickrAPIError('Something when wrong making the request, returned a %d code.' % status)
@@ -190,10 +192,12 @@ class FlickrAPI(object):
 
         return dict(content)
 
-    def get(self, endpoint=None, params={}):
+    def get(self, endpoint=None, params=None):
+        params = params or {}
         return self.api_request(endpoint, method='GET', params=params)
 
-    def post(self, endpoint=None, params={}, files=None):
+    def post(self, endpoint=None, params=None, files=None):
+        params = params or {}
         return self.api_request(endpoint, method='POST', params=params, files=files)
 
     @staticmethod

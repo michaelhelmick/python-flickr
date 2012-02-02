@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='python-flickr',
-    version='0.1.0',
+    version='0.1.1',
     install_requires=['httplib2', 'oauth2', 'simplejson'],
     author='Mike Helmick',
     author_email='mikehelmick@me.com',
@@ -15,7 +15,7 @@ setup(
     long_description=open('README.md').read(),
     download_url="https://github.com/michaelhelmick/python-flickr/zipball/master",
     py_modules=["flickr"],
-    classifiers = [
+    classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
