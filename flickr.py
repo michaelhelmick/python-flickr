@@ -177,7 +177,7 @@ class FlickrAPI(object):
         
         status = int(resp['status'])
         if status < 200 or status >= 300:
-            raise FlickrAPIError('Something when wrong making the request, returned a %d code.' % d)
+            raise FlickrAPIError('Something when wrong making the request, returned a %d code.' % status)
 
         #try except for if content is able to be decoded
         try:
