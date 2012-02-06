@@ -3,6 +3,11 @@ I've been writing up APIs interfacing with OAuth in Python like no other the pas
 
 Hope this documentation explains everything you need to get started. Any questions feel free to email me or inbox me.
 
+#Install through pip...
+```
+pip install python-flickr
+```
+
 #Authorization URL
 *Get an authorization url for your user*
 
