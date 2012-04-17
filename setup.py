@@ -4,15 +4,15 @@ from setuptools import setup
 
 setup(
     name='python-flickr',
-    version='0.1.1',
+    version='0.2.0',
     install_requires=['httplib2', 'oauth2', 'simplejson'],
     author='Mike Helmick',
     author_email='mikehelmick@me.com',
     license='MIT License',
     url='https://github.com/michaelhelmick/python-flickr/',
     keywords='python flickr oauth api',
-    description='A Python Library to interface with Flickr REST API & OAuth',
-    long_description=open('README.md').read(),
+    description='A Python Library to interface with Flickr REST API, OAuth & JSON Responses',
+    long_description=open('README.rst').read(),
     download_url="https://github.com/michaelhelmick/python-flickr/zipball/master",
     py_modules=["flickr"],
     classifiers=[

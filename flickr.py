@@ -6,13 +6,18 @@ For Flickr API documentation, visit: http://www.flickr.com/services/api/
 '''
 
 __author__ = 'Mike Helmick <mikehelmick@me.com>'
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 
-import time
 import urllib
 import urllib2
+import mimetypes
+import mimetools
+import codecs
+from io import BytesIO
+
 import httplib2
 import oauth2 as oauth
+
 
 try:
     from urlparse import parse_qsl
@@ -31,8 +36,68 @@ except ImportError:
             raise ImportError('A json library is required to use this python library. Lol, yay for being verbose. ;)')
 
 
-class FlickrAPIError(Exception): pass
-class FlickrAuthError(FlickrAPIError): pass
+# We need to import a XML Parser because Flickr doesn't return JSON for photo uploads -_-
+try:
+    from lxml import etree
+except ImportError:
+    try:
+        # Python 2.5
+        import xml.etree.cElementTree as etree
+    except ImportError:
+        try:
+            # Python 2.5
+            import xml.etree.ElementTree as etree
+        except ImportError:
+            try:
+                #normal cElementTree install
+                import cElementTree as etree
+            except ImportError:
+                try:
+                    # normal ElementTree install
+                    import elementtree.ElementTree as etree
+                except ImportError:
+                    print("Failed to import ElementTree from any known place")
+
+writer = codecs.lookup('utf-8')[3]
+
+
+def get_content_type(filename):
+    return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+
+
+def iter_fields(fields):
+    """Iterate over fields.
+
+    Supports list of (k, v) tuples and dicts.
+    """
+    if isinstance(fields, dict):
+        return ((k, v) for k, v in fields.iteritems())
+    return ((k, v) for k, v in fields)
+
+
+class FlickrAPIError(Exception):
+    """ Generic error class, catch-all for most Tumblpy issues.
+
+        from Tumblpy import FlickrAPIError, FlickrAuthError
+    """
+    def __init__(self, msg, error_code=None):
+        self.msg = msg
+        self.code = error_code
+        if error_code is not None and error_code < 100:
+            raise FlickrAuthError(msg, error_code)
+
+    def __str__(self):
+        return repr(self.msg)
+
+
+class FlickrAuthError(FlickrAPIError):
+    """ Raised when you try to access a protected resource and it fails due to some issue with your authentication. """
+    def __init__(self, msg, error_code=None):
+        self.msg = msg
+        self.code = error_code
+
+    def __str__(self):
+        return repr(self.msg)
 
 
 class FlickrAPI(object):
@@ -52,8 +117,6 @@ class FlickrAPI(object):
         self.request_token_url = 'http://www.flickr.com/services/oauth/request_token'
         self.access_token_url = 'http://www.flickr.com/services/oauth/access_token'
         self.authorize_url = 'http://www.flickr.com/services/oauth/authorize'
-
-        self.default_params = {'api_key': self.api_key}
 
         self.headers = headers
         if self.headers is None:
@@ -108,16 +171,13 @@ class FlickrAPI(object):
         request_tokens['auth_url'] = '%s?%s' % (self.authorize_url, urllib.urlencode(auth_url_params))
         return request_tokens
 
-    def get_auth_tokens(self, oauth_verifier=None):
+    def get_auth_tokens(self, oauth_verifier):
         """ Returns 'final' tokens to store and used to make authorized calls to Flickr.
 
             Parameters:
                 oauth_token - oauth_token returned from when the user is redirected after hitting the get_auth_url() function
                 verifier - oauth_verifier returned from when the user is redirected after hitting the get_auth_url() function
         """
-
-        if not oauth_verifier:
-            raise FlickrAuthError('No OAuth Verifier supplied.')
 
         params = {
             'oauth_verifier': oauth_verifier,
@@ -129,66 +189,116 @@ class FlickrAPI(object):
 
         return dict(parse_qsl(content))
 
-    def api_request(self, endpoint=None, method='GET', params={}, format='json', files=None):
+    def api_request(self, endpoint=None, method='GET', params={}, files=None):
         self.headers.update({'Content-Type': 'application/json'})
 
         if endpoint is None and files is None:
             raise FlickrAPIError('Please supply an API endpoint to hit.')
 
-        params.update(self.default_params)
-        params.update({'method': endpoint, 'format': format})
-
-        if format == 'json':
-            params['nojsoncallback'] = 1
+        qs = {
+            'format': 'json',
+            'nojsoncallback': 1,
+            'method': endpoint,
+            'api_key': self.api_key
+        }
 
         if method == 'POST':
-            oauth_params = {
-                'oauth_version': "1.0",
-                'oauth_nonce': oauth.generate_nonce(),
-                'oauth_timestamp': int(time.time())
-            }
-            params.update(oauth_params)
 
             if files is not None:
-                files = [('photo', files, open(files, 'rb').read())]
+                # When uploading a file, we need to create a fake request
+                # to sign parameters that are not multipart before we add
+                # the multipart file to the parameters...
+                # OAuth is not meant to sign multipart post data
+                faux_req = oauth.Request.from_consumer_and_token(self.consumer,
+                                                                 token=self.token,
+                                                                 http_method="POST",
+                                                                 http_url=self.upload_api_url,
+                                                                 parameters=params)
 
-                #create a fake request with your upload url and parameters
-                faux_req = oauth.Request(method='POST', url=self.upload_api_url, parameters=params)
+                faux_req.sign_request(oauth.SignatureMethod_HMAC_SHA1(),
+                                      self.consumer,
+                                      self.token)
 
-                #sign the fake request.
-                signature_method = oauth.SignatureMethod_HMAC_SHA1()
-                faux_req.sign_request(signature_method, self.consumer, self.token)
+                all_upload_params = dict(parse_qsl(faux_req.to_postdata()))
 
-                #create a dict out of the fake request signed params
-                params = dict(parse_qsl(faux_req.to_postdata()))
+                # For Tumblr, all media (photos, videos)
+                # are sent with the 'data' parameter
+                all_upload_params['photo'] = (files.name, files.read())
+                body, content_type = self.encode_multipart_formdata(all_upload_params)
 
-                content_type, body = self.encode_multipart_formdata(params, files)
-                headers = {'Content-Type': content_type, 'Content-Length': str(len(body))}
-                r = urllib2.Request('%s' % self.upload_api_url, body, headers)
-                return urllib2.urlopen(r).read()
+                self.headers.update({
+                    'Content-Type': content_type,
+                    'Content-Length': str(len(body))
+                })
 
-            req = oauth.Request(method='POST', url=self.rest_api_url, parameters=params)
+                req = urllib2.Request(self.upload_api_url, body, self.headers)
+                try:
+                    req = urllib2.urlopen(req)
+                except urllib2.HTTPError, e:
+                    # Making a fake resp var because urllib2.urlopen doesn't
+                    # return a tuple like OAuth2 client.request does
+                    resp = {'status': e.code}
+                    content = e.read()
 
-            ## Sign the request.
-            signature_method = oauth.SignatureMethod_HMAC_SHA1()
-            req.sign_request(signature_method, self.consumer, self.token)
+                # If no error, assume response was 200
+                resp = {'status': 200}
 
-            resp, content = self.client.request(req.to_url(), 'POST', body=req.to_postdata(), headers=self.headers)
+                content = req.read()
+                content = etree.XML(content)
+
+                stat = content.get('stat') or 'ok'
+
+                if stat == 'fail':
+                    if content.find('.//err') is not None:
+                        code = content.findall('.//err[@code]')
+                        msg = content.findall('.//err[@msg]')
+
+                        if len(code) > 0:
+                            if len(msg) == 0:
+                                msg = 'An error occurred making your Flickr API request.'
+                            else:
+                                msg = msg[0].get('msg')
+
+                            code = int(code[0].get('code'))
+
+                            content = {
+                                'stat': 'fail',
+                                'code': code,
+                                'message': msg
+                            }
+                else:
+                    photoid = content.find('.//photoid')
+                    if photoid is not None:
+                        photoid = photoid.text
+
+                    content = {
+                        'stat': 'ok',
+                        'photoid': photoid
+                    }
+
+            else:
+                url = self.rest_api_url + '?' + urllib.urlencode(qs)
+                resp, content = self.client.request(url, 'POST', urllib.urlencode(params), headers=self.headers)
+                print content
         else:
+            params.update(qs)
             resp, content = self.client.request('%s?%s' % (self.rest_api_url, urllib.urlencode(params)), 'GET', headers=self.headers)
-
-        status = int(resp['status'])
-        if status < 200 or status >= 300:
-            raise FlickrAPIError('Something when wrong making the request, returned a %d code.' % status)
 
         #try except for if content is able to be decoded
         try:
-            content = json.loads(content)
-        except json.JSONDecodeError:
+            if type(content) != dict:
+                content = json.loads(content)
+        except ValueError:
             raise FlickrAPIError('Content is not valid JSON, unable to be decoded.')
 
+        status = int(resp['status'])
+        if status < 200 or status >= 300:
+            raise FlickrAPIError('Flickr returned a Non-200 response.', error_code=status)
+
         if content.get('stat') and content['stat'] == 'fail':
-            raise FlickrAPIError('Something when wrong finishing the request. Flickr returned Error Code: %d. Message: %s' % (content['code'], content['message']))
+            raise FlickrAPIError('Flickr returned error code: %d. Message: %s' % \
+                                (content['code'], content['message']),
+                                error_code=content['code'])
 
         return dict(content)
 
@@ -200,26 +310,54 @@ class FlickrAPI(object):
         params = params or {}
         return self.api_request(endpoint, method='POST', params=params, files=files)
 
-    @staticmethod
-    def encode_multipart_formdata(fields, files):
-        import mimetools
-        import mimetypes
-        BOUNDARY = mimetools.choose_boundary()
-        CRLF = '\r\n'
-        L = []
-        for (key, value) in fields.items():
-            L.append('--' + BOUNDARY)
-            L.append('Content-Disposition: form-data; name="%s"' % key)
-            L.append('')
-            L.append(value)
-        for (key, filename, value) in files:
-            L.append('--' + BOUNDARY)
-            L.append('Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename))
-            L.append('Content-Type: %s' % mimetypes.guess_type(filename)[0] or 'application/octet-stream')
-            L.append('')
-            L.append(value)
-        L.append('--' + BOUNDARY + '--')
-        L.append('')
-        body = CRLF.join(L)
-        content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
-        return content_type, body
+    # Thanks urllib3 <3
+    def encode_multipart_formdata(self, fields, boundary=None):
+        """
+        Encode a dictionary of ``fields`` using the multipart/form-data mime format.
+
+        :param fields:
+            Dictionary of fields or list of (key, value) field tuples.  The key is
+            treated as the field name, and the value as the body of the form-data
+            bytes. If the value is a tuple of two elements, then the first element
+            is treated as the filename of the form-data section.
+
+            Field names and filenames must be unicode.
+
+        :param boundary:
+            If not specified, then a random boundary will be generated using
+            :func:`mimetools.choose_boundary`.
+        """
+        body = BytesIO()
+        if boundary is None:
+            boundary = mimetools.choose_boundary()
+
+        for fieldname, value in iter_fields(fields):
+            body.write('--%s\r\n' % (boundary))
+
+            if isinstance(value, tuple):
+                filename, data = value
+                writer(body).write('Content-Disposition: form-data; name="%s"; '
+                                   'filename="%s"\r\n' % (fieldname, filename))
+                body.write('Content-Type: %s\r\n\r\n' %
+                           (get_content_type(filename)))
+            else:
+                data = value
+                writer(body).write('Content-Disposition: form-data; name="%s"\r\n'
+                                   % (fieldname))
+                body.write(b'Content-Type: text/plain\r\n\r\n')
+
+            if isinstance(data, int):
+                data = str(data)  # Backwards compatibility
+
+            if isinstance(data, unicode):
+                writer(body).write(data)
+            else:
+                body.write(data)
+
+            body.write(b'\r\n')
+
+        body.write('--%s--\r\n' % (boundary))
+
+        content_type = 'multipart/form-data; boundary=%s' % boundary
+
+        return body.getvalue(), content_type
