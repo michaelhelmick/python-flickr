@@ -56,7 +56,7 @@ except ImportError:
                     # normal ElementTree install
                     import elementtree.ElementTree as etree
                 except ImportError:
-                    print("Failed to import ElementTree from any known place")
+                    raise ImportError('Failed to import ElementTree from any known place')
 
 writer = codecs.lookup('utf-8')[3]
 
