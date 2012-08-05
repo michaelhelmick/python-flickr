@@ -114,6 +114,7 @@ class FlickrAPI(object):
         self.api_base = 'http://api.flickr.com/services'
         self.rest_api_url = '%s/rest' % self.api_base
         self.upload_api_url = '%s/upload/' % self.api_base
+        self.replace_api_url = '%s/replace/' % self.api_base
         self.request_token_url = 'http://www.flickr.com/services/oauth/request_token'
         self.access_token_url = 'http://www.flickr.com/services/oauth/access_token'
         self.authorize_url = 'http://www.flickr.com/services/oauth/authorize'
@@ -189,7 +190,7 @@ class FlickrAPI(object):
 
         return dict(parse_qsl(content))
 
-    def api_request(self, endpoint=None, method='GET', params={}, files=None):
+    def api_request(self, endpoint=None, method='GET', params={}, files=None, replace=False):
         self.headers.update({'Content-Type': 'application/json'})
 
         if endpoint is None and files is None:
@@ -205,14 +206,15 @@ class FlickrAPI(object):
         if method == 'POST':
 
             if files is not None:
-                # When uploading a file, we need to create a fake request
+                # To upload/replace file, we need to create a fake request
                 # to sign parameters that are not multipart before we add
                 # the multipart file to the parameters...
                 # OAuth is not meant to sign multipart post data
+                http_url = self.replace_api_url if replace else self.upload_api_url
                 faux_req = oauth.Request.from_consumer_and_token(self.consumer,
                                                                  token=self.token,
                                                                  http_method="POST",
-                                                                 http_url=self.upload_api_url,
+                                                                 http_url=http_url,
                                                                  parameters=params)
 
                 faux_req.sign_request(oauth.SignatureMethod_HMAC_SHA1(),
@@ -231,7 +233,7 @@ class FlickrAPI(object):
                     'Content-Length': str(len(body))
                 })
 
-                req = urllib2.Request(self.upload_api_url, body, self.headers)
+                req = urllib2.Request(http_url, body, self.headers)
                 try:
                     req = urllib2.urlopen(req)
                 except urllib2.HTTPError, e:
@@ -306,9 +308,9 @@ class FlickrAPI(object):
         params = params or {}
         return self.api_request(endpoint, method='GET', params=params)
 
-    def post(self, endpoint=None, params=None, files=None):
+    def post(self, endpoint=None, params=None, files=None, replace=False):
         params = params or {}
-        return self.api_request(endpoint, method='POST', params=params, files=files)
+        return self.api_request(endpoint, method='POST', params=params, files=files, replace=replace)
 
     # Thanks urllib3 <3
     def encode_multipart_formdata(self, fields, boundary=None):
