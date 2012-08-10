@@ -6,7 +6,7 @@ For Flickr API documentation, visit: http://www.flickr.com/services/api/
 '''
 
 __author__ = 'Mike Helmick <mikehelmick@me.com>'
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 
 import urllib
 import urllib2
