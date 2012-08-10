@@ -240,6 +240,11 @@ class FlickrAPI(object):
                     resp = {'status': e.code}
                     content = e.read()
 
+                # After requests is finished, delete Content Length & Type so
+                # requests after don't use same Length and take (i.e 20 sec)
+                del self.headers['Content-Type']
+                del self.headers['Content-Length']
+
                 # If no error, assume response was 200
                 resp = {'status': 200}
 
@@ -279,7 +284,6 @@ class FlickrAPI(object):
             else:
                 url = self.rest_api_url + '?' + urllib.urlencode(qs)
                 resp, content = self.client.request(url, 'POST', urllib.urlencode(params), headers=self.headers)
-                print content
         else:
             params.update(qs)
             resp, content = self.client.request('%s?%s' % (self.rest_api_url, urllib.urlencode(params)), 'GET', headers=self.headers)
