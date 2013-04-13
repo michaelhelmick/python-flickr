@@ -28,40 +28,53 @@ Authorization URL
 ~~~~~~~~~~~~~~~~~
 ::
 
-    f = FlickrAPI(api_key='*your app key*',
-              api_secret='*your app secret*',
-              callback_url='http://www.example.com/callback/')
+    f = FlickrAPI('YOUR_APP_KEY', 'YOUR_APP_SECRET')
 
-    auth_props = f.get_authentication_tokens()
+    auth_props = f.get_authentication_tokens('http://www.example.com/callback/')
     auth_url = auth_props['auth_url']
 
-    #Store this token in a session or something for later use in the next step.
-    oauth_token = auth_props['oauth_token']
-    oauth_token_secret = auth_props['oauth_token_secret']
+You set a permission (read, write, or delete) in your application settings,
+if you wish to override the permission you can pass a second argument to the ``get_authenticaation_tokens`` method
+
+::
+
+    f = FlickrAPI('YOUR_APP_KEY', 'YOUR_APP_SECRET')
+
+    auth_props = f.get_authentication_tokens('http://www.example.com/callback/', perms='delete')
+    auth_url = auth_props['auth_url']
+
+
+::
+    # Store the oauth_token_secret from auth_props in a session var or something for later use in the next step
+    # in Django, you'd do something like this
+    # request.session['oauth_token_secret'] = auth_props['oauth_token_secret']
 
     print 'Connect with Flickr via: %s' % auth_url
 
-Once you click "Allow" be sure that there is a URL set up to handle getting finalized tokens and possibly adding them to your database to use their information at a later date.
+Once the user clicks "Ok, I'll Authorize It" be sure that there is a URL set up to handle getting finalized tokens and possibly adding them to your database to use their information at a later date.
 
 
 Handling the Callback
 ~~~~~~~~~~~~~~~~~~~~~
 ::
 
-    # oauth_token and oauth_token_secret come from the previous step
-    # if needed, store those in a session variable or something
+    # oauth_token_secret come from the previous step
+    # oauth_token and oauth_verifier can be found in the query string
 
-    f = FlickrAPI(api_key='*your app key*',
-                  api_secret='*your app secret*',
-                  oauth_token=oauth_token,
-                  oauth_token_secret=oauth_token_secret)
+    # in Django, you'd do something like this
+    # oauth_verifier = request.GET.get('oauth_verifier')
+    # oauth_token = request.GET.get('oauth_token')
+    # oauth_token_secret = request.session.get('oauth_token_secret')
+
+    f = FlickrAPI('YOUR_APP_KEY', 'YOUR_APP_SECRET',
+                  oauth_token, oauth_token_secret)
 
     authorized_tokens = f.get_auth_tokens(oauth_verifier)
 
     final_oauth_token = authorized_tokens['oauth_token']
     final_oauth_token_secret = authorized_tokens['oauth_token_secret']
 
-    # Save those tokens to the database for a later use?
+    # Save those tokens to the database for a later use!
 
 
 Getting the Users recent activity feed
@@ -70,10 +83,8 @@ Getting the Users recent activity feed
 
     # Get the final tokens from the database or wherever you have them stored
 
-    f = FlickrAPI(api_key='*your app key*',
-                  api_secret='*your app secret*',
-                  oauth_token=final_tokens['oauth_token'],
-                  oauth_token_secret=final_tokens['oauth_token_secret'])
+    f = FlickrAPI('YOUR_APP_KEY', 'YOUR_APP_SECRET',
+                  final_tokens['oauth_token'], final_tokens['oauth_token_secret'])
 
     recent_activity = f.get('flickr.activity.userComments')
     print recent_activity
