@@ -284,8 +284,8 @@ class FlickrAPI(object):
                     }
 
             else:
-                url = self.rest_api_url + '?' + urllib.urlencode(qs)
-                resp, content = self.client.request(url, 'POST', urllib.urlencode(params), headers=self.headers)
+                url = self.rest_api_url + '?' + urllib.urlencode(qs) + '&' + urllib.urlencode(params)
+                resp, content = self.client.request(url, 'POST', headers=self.headers)
         else:
             params.update(qs)
             resp, content = self.client.request('%s?%s' % (self.rest_api_url, urllib.urlencode(params)), 'GET', headers=self.headers)
