@@ -2,7 +2,7 @@
 
 """ Python-Flickr """
 '''
-For Flickr API documentation, visit: http://www.flickr.com/services/api/
+For Flickr API documentation, visit: https://www.flickr.com/services/api/
 '''
 
 __author__ = 'Mike Helmick <mikehelmick@me.com>'
@@ -111,13 +111,13 @@ class FlickrAPI(object):
         self.oauth_token_secret = oauth_token_secret
         self.callback_url = callback_url
 
-        self.api_base = 'http://api.flickr.com/services'
+        self.api_base = 'https://api.flickr.com/services'
         self.rest_api_url = '%s/rest' % self.api_base
         self.upload_api_url = '%s/upload/' % self.api_base
         self.replace_api_url = '%s/replace/' % self.api_base
-        self.request_token_url = 'http://www.flickr.com/services/oauth/request_token'
-        self.access_token_url = 'http://www.flickr.com/services/oauth/access_token'
-        self.authorize_url = 'http://www.flickr.com/services/oauth/authorize'
+        self.request_token_url = 'https://www.flickr.com/services/oauth/request_token'
+        self.access_token_url = 'https://www.flickr.com/services/oauth/access_token'
+        self.authorize_url = 'https://www.flickr.com/services/oauth/authorize'
 
         self.headers = headers
         if self.headers is None:
