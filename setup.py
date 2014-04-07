@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='python-flickr',
-    version='0.3.0',
+    version='0.3.1',
     install_requires=['httplib2', 'oauth2', 'simplejson'],
     author='Mike Helmick',
     author_email='me@michaelhelmick.com',
