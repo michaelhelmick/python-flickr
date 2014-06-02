@@ -6,7 +6,7 @@ For Flickr API documentation, visit: https://www.flickr.com/services/api/
 '''
 
 __author__ = 'Mike Helmick <mikehelmick@me.com>'
-__version__ = '0.3.0'
+__version__ = '0.3.2'
 
 import urllib
 import urllib2
@@ -112,9 +112,10 @@ class FlickrAPI(object):
         self.callback_url = callback_url
 
         self.api_base = 'https://api.flickr.com/services'
+        self.up_api_base = 'https://up.flickr.com/services'
         self.rest_api_url = '%s/rest' % self.api_base
-        self.upload_api_url = '%s/upload/' % self.api_base
-        self.replace_api_url = '%s/replace/' % self.api_base
+        self.upload_api_url = '%s/upload/' % self.up_api_base
+        self.replace_api_url = '%s/replace/' % self.up_api_base
         self.request_token_url = 'https://www.flickr.com/services/oauth/request_token'
         self.access_token_url = 'https://www.flickr.com/services/oauth/access_token'
         self.authorize_url = 'https://www.flickr.com/services/oauth/authorize'
@@ -192,6 +193,7 @@ class FlickrAPI(object):
 
     def api_request(self, endpoint=None, method='GET', params={}, files=None, replace=False):
         self.headers.update({'Content-Type': 'application/json'})
+        self.headers.update({'Content-Length': '0'})
 
         if endpoint is None and files is None:
             raise FlickrAPIError('Please supply an API endpoint to hit.')
