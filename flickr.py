@@ -8,16 +8,16 @@ For Flickr API documentation, visit: https://www.flickr.com/services/api/
 __author__ = 'Mike Helmick <mikehelmick@me.com>'
 __version__ = '0.3.2'
 
+import codecs
+import mimetools
+import mimetypes
 import urllib
 import urllib2
-import mimetypes
-import mimetools
-import codecs
 from io import BytesIO
 
 import httplib2
-import oauth2 as oauth
 
+import oauth2 as oauth
 
 try:
     from urlparse import parse_qsl
