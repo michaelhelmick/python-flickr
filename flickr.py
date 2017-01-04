@@ -6,7 +6,7 @@ For Flickr API documentation, visit: https://www.flickr.com/services/api/
 '''
 
 __author__ = 'Mike Helmick <mikehelmick@me.com>'
-__version__ = '0.3.2'
+__version__ = '0.4.0'
 
 import codecs
 import mimetools
